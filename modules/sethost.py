@@ -12,15 +12,17 @@ module_config = {
 	"handle":"handle_userhost_request"
 }
 
-def handle_userhost_request(text):
+def handle_userhost_request(client, text):
 	host = user_host_helper(text)
 	if host is not None:
 		# set host
-		# client.host = "%s.%s" % (host, surfix)
-		print "%s.%s" % (host, surfix)
+		print client
+		client.host = "%s.%s" % (host, surfix)
+		print client.host
+		client.reply(RPL_USERHOST, "%s=+%s@%s" % (client.nick, "hidden", client.host))
 	else:
 		error_msg = "disallowed host.\nUsage:\n\t/SETHOST <host>[.blurk.org]\n\t\t<host> must be at least 3, and at most 40 chars\n\t\t<host> allowed chars: a-z.- and 0-9.\n\n\tExample:\t/SETHOST herp.derp\n\t\t\t/SETHOST user.blurk.org"
-		# self.connection.send(":%s %s %s :%s\n" % (VHOST, ERR_NEEDMOREPARAMS, self.nick, error_msg))
+		self.connection.send(":%s %s %s :%s\n" % (VHOST, ERR_NEEDMOREPARAMS, self.nick, error_msg))
 		print errormsg # debug version
 
 def user_host_helper(text):

@@ -146,11 +146,17 @@ def irc_handler(conn, addr):
 
 			if data[0:5] == "WHOIS":
 				conn.send(":%s :End of /WHOIS list\n" % client.nick)
-				
-			print "Loaded modules:"
-			for module in MODULES:
-				print "%s -> %s" % (module["trigger"], module["handle"])
 
+			print "Checking for (external) module triggers:"
+			for module in MODULES:
+				if data[0:len(module.module_config["trigger"])+1] == module.module_config["trigger"]+" ":
+#					try:
+						print getattr(module, module.module_config["handle"])
+						print "sending data", data[len(module.module_config["trigger"])+1:], "to function named:", module.module_config["handle"]
+						getattr(module, module.module_config["handle"])(client, data[len(module.module_config["trigger"])+1:])
+#					except:
+#						print "External module error"
+#						client.reply(ERR_NEEDMOREPARAMS, "An error occurred. Please report to an IRCOP.")
 	conn.close()
 	print "closed connection from", addr
 
@@ -174,7 +180,6 @@ def load_config(config_file):
 	try:
 		config_fp = open(config_file)
 		config_content = config_fp.read()
-		print "config: {%s}" % config_content
 		for network_name_setting in re.finditer("NETWORK_NAME[^\w]+([^\n\";]+)", config_content):
 			config["NETWORK_NAME"] = network_name_setting.group(1)
 		for bind_address_setting in re.finditer("BIND_ADDRESS[^\w]+([^\n\";]+)", config_content):
@@ -191,11 +196,9 @@ def load_config(config_file):
 			config["MOTD_FILE"] = motd_setting.group(1)
 		module_region = re.search("MODULES[^\w]+\[([^\]]+)]", config_content)
 		if module_region is not None:
-			print "currently loaded:", MODULES
 			for load_module in re.finditer("(?:\")?(?P<module_name>[^,\"]+)(?:\")?", module_region.group(1)):
-				print "attempting to import %s" % load_module.group("module_name")
-				external_module = __import__(load_module.group("module_name"), globals(), locals())
-				MODULES.append(external_module)
+				MODULES.append(__import__(load_module.group("module_name"), globals(), locals()))
+				print "Loaded module: %s" % load_module.group("module_name")
 		config_fp.close()
 		if config["NETWORK_NAME"] is None or config["BIND_ADDRESS"] is None or config["PORT"] is None or config["VHOST"] is None or config["SSL_CERT"] is None or config["SSL_KEY"] is None:
 			return False
@@ -207,8 +210,11 @@ if load_config(config_path) is False:
 	print "config error."
 	exit(0)
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-print "addr:", config["BIND_ADDRESS"],"port:", config["PORT"]
-s.bind((config["BIND_ADDRESS"], config["PORT"]))
+try:
+	s.bind((config["BIND_ADDRESS"], config["PORT"]))
+except Exception, e:
+	print type(e)
+print "Listening on %s:%s" % (config["BIND_ADDRESS"], str(config["PORT"]))
 s.listen(5)
 print 'pyIRCd v0.1'
 accept_thread = threading.Thread(target=accept_clients)
