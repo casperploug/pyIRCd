@@ -1,10 +1,16 @@
 #!/usr/bin/env python
-import socket, string, sys, threading
+import re, socket, string, sys, threading
 from time import sleep
 from datetime import timedelta, datetime, date
 from random import choice
 from OpenSSL import SSL
 import ssl
+
+sys.path.append("core")
+sys.path.append("modules")
+
+from irc_codes import *
+MODULES = []
 
 class irc_client():
 	def __init__(self, connection, nick="herpderp", user="", passwd="", host="127.0.0.1", port=22):
@@ -17,45 +23,54 @@ class irc_client():
 		self.registered = False
 		ping_thread = threading.Thread(target=self.PING_chain)
 		ping_thread.start()
+		
+	def reply(self, code, text):
+		if text[-1] != '\n':
+			text += '\n'
+		self.connection.send(":%s %s %s :%s" % (config["VHOST"], code, self.nick, text))
 
 	def PING_chain(self):
 		valid_from = datetime.now() + timedelta(seconds=15)
 		print "first ping req from us to client at", valid_from
 		while (1):
 			if datetime.now() >= valid_from:
-				if self.PING(self.connection) is False:
+				if self.PING() is False:
 					break
 				valid_from = datetime.now() + timedelta(seconds=15)
 			sleep(5)
 
-	def PING(self, connection):
+	def PING(self):
 		try:
 			ping_request = ''
 			for i in range(8):
 			  ping_request += choice(string.letters+string.digits)
 			print "PING :%s" % ping_request
-			connection.send("PING :%s\n" % ping_request)
+			self.connection.send("PING :%s\n" % ping_request)
 			return True
 		except:
 			return False
 
-	def motd(self, connection):
-		connection.send(":%s %s %s :- %s Message of the day - \n" % (VHOST, RPL_MOTDSTART, self.nick, VHOST))
-		for motd_line in MOTD_BODY:
-			connection.send(":%s %s %s :- %s\n" % (VHOST, RPL_MOTD, self.nick, motd_line))
-		connection.send(":%s %s %s :End of /MOTD command\n" % (VHOST, RPL_MOTDSTART, self.nick))
+	def display_motd(self):
+		self.reply(RPL_MOTDSTART, "- %s Message of the day - " % config["VHOST"])
+		try:
+			motd_fp = open(MOTD_FILE)
+			for motd_line in motd_fp:
+				self.reply(RPL_MOTD, "- %s" % motd_line)
+		except:
+			pass
+		self.reply(RPL_ENDOFMOTD, "End of /MOTD command")
 
 def accept_clients():
 	while 1:
 		try:
 			conn, addr = s.accept()
-			secure_connection = ssl.wrap_socket(conn, server_side=True, certfile=sys.argv[1], keyfile=sys.argv[2], ssl_version=ssl.PROTOCOL_SSLv23)
+			secure_connection = ssl.wrap_socket(conn, server_side=True, certfile=config["SSL_CERT"], keyfile=config["SSL_KEY"], ssl_version=ssl.PROTOCOL_SSLv23)
 			client_handler = threading.Thread(target=irc_handler, args=[secure_connection, addr])
 			client_handler.start()
 		except:
 			print "\nconnection failed, dropping"
 			continue
-		print 'connection from', addr
+		print "connection from", addr
 	s.close()
 
 def irc_handler(conn, addr):
@@ -97,85 +112,105 @@ def irc_handler(conn, addr):
 					print "%s changes nick to %s" % (oldnick, client.nick)
 					conn.send(":%s NICK %s\n" % (oldnick, client.nick))
 				except:
-					conn.send(":%s %s %s :No nickname given\n" % (VHOST, ERR_NONICKNAMEGIVEN, client.nick))
+					client.reply(ERR_NONICKNAMEGIVEN, "No nickname given")
 
 			if data[0:5] == "USER ":
 				try:
 					client.user = data[5:]
 				except:
-					conn.send(":%s %s %s :Not enough parameters\n" % (VHOST, ERR_NEEDMOREPARAMS, client.nick))
+					client.reply(ERR_NEEDMOREPARAMS, "Not enough parameters")
 
 			if data[0:4] == "MODE":
 				try:
 					mode_chunks = data[5:].split()
 					client.mode = mode_chunks[1]
 					conn.send(":%s MODE %s :%s\n" % (client.nick, client.nick, client.mode))
-					print "replied to MODE, with", ":%s MODE %s :%s" % (client.nick, client.nick, client.mode)
 				except:
-					conn.send(":%s %s %s :Unknown mode\n" % (VHOST, ERR_UNKNOWNMODE, client.nick))
+					client.reply(ERR_UNKNOWNMODE, "Unknown mode")
 
 			if data[0:8] == "USERHOST":
 				try:
-					conn.send(":%s %s %s :%s=+%s@%s\n" % (VHOST, RPL_USERHOST, client.nick, client.nick, "hidden", client.host))
+					client.reply(RPL_USERHOST, "%s=+%s@%s" % (client.nick, "hidden", client.host))
 				except:
-					conn.send(":%s %s %s :Unknown command: %s\n" % (VHOST, ERR_UNKNOWNCOMMAND, client.nick, data))
+					client.reply(ERR_UNKNOWNCOMMAND, "Unknown command")
 
 			# welcome + motd
 			if client.nick != "herpderp" and len(client.user) > 0 and client.registered is False:
 				print "flagging %s@%s as registered..." % (client.nick, client.user)
-				conn.send(":%s %s %s :Welcome to %s, %s\n" % (VHOST, "001", client.nick, NETWORK_NAME, client.nick))
-				client.motd(conn)
-#				conn.send(":%s MODE %s :+i\n" % (client.nick, client.nick))
+				client.reply("001", "Welcome to %s, %s" % (config["NETWORK_NAME"], client.nick))
+				client.display_motd()
 				client.registered = True
 				continue
 			if client.registered is False:
-				conn.send(":%s %s %s :You have not registered\n" % (VHOST, ERR_NOTREGISTERED, client.nick))
+				client.reply(ERR_NOTREGISTERED, "You have not registered")
 
 			if data[0:5] == "WHOIS":
 				conn.send(":%s :End of /WHOIS list\n" % client.nick)
+				
+			print "Loaded modules:"
+			for module in MODULES:
+				print "%s -> %s" % (module["trigger"], module["handle"])
+
 	conn.close()
 	print "closed connection from", addr
 
-# irc codes
-RPL_USERHOST = 302
-RPL_MOTDSTART = 375
-RPL_MOTD = 372
-RPL_ENDOFMOTD = 376
-RPL_WHOISUSER = 311
-RPL_WHOISSERVER = 312
-RPL_WHOISOPERATOR = 313
-RPL_WHOISIDLE = 317
-RPL_ENDOFWHOIS = 318
-RPL_WHOISCHANNELS = 319
-ERR_NOSUCHNICK = 401
-ERR_NOSUCHCHANNEL = 403
-ERR_CANNOTSENDTOCHAN = 404
-ERR_NOORIGIN = 409
-ERR_NOTEXTTOSEND = 412
-ERR_UNKNOWNCOMMAND = 421
-ERR_NICKNAMEINUSE = 433
-ERR_NONICKNAMEGIVEN = 431
-ERR_NOTREGISTERED = 451
-ERR_NEEDMOREPARAMS = 461
+# irc settings. define in pyircd.conf
+config = {
+	"NETWORK_NAME" : None,
+	"BIND_ADDRESS" : None,
+	"PORT" : None,
+	"VHOST" : None,
+	"SSL_CERT" : None,
+	"SSL_KEY" : None,
+	"MOTD_FILE" : None
+}
+config_path = None
+try:
+	config_path = sys.argv[1]
+except:
+	config_path = "pyircd.conf"
 
-# irc settings
-NETWORK_NAME = "blurk IRC Network"
-HOST = "127.0.0.1"
-VHOST = "irc.blurk.org"
-PORT = 5005
+def load_config(config_file):
+	try:
+		config_fp = open(config_file)
+		config_content = config_fp.read()
+		print "config: {%s}" % config_content
+		for network_name_setting in re.finditer("NETWORK_NAME[^\w]+([^\n\";]+)", config_content):
+			config["NETWORK_NAME"] = network_name_setting.group(1)
+		for bind_address_setting in re.finditer("BIND_ADDRESS[^\w]+([^\n\";]+)", config_content):
+			config["BIND_ADDRESS"] = bind_address_setting.group(1)
+		for port_setting in re.finditer("PORT[^\w]+([^\n\";]+)", config_content):
+			config["PORT"] = int(port_setting.group(1))
+		for vhost_setting in re.finditer("VHOST[^\w]+([^\n\";]+)", config_content):
+			config["VHOST"] = vhost_setting.group(1)
+		for ssl_cert_setting in re.finditer("SSL_CERT[^\w]+([^\n\";]+)", config_content):
+			config["SSL_CERT"] = ssl_cert_setting.group(1)
+		for ssl_key_setting in re.finditer("SSL_KEY[^\w]+([^\n\";]+)", config_content):
+			config["SSL_KEY"] = ssl_key_setting.group(1)
+		for motd_setting in re.finditer("MOTD_FILE[^\w]+([^\n\";]+)", config_content):
+			config["MOTD_FILE"] = motd_setting.group(1)
+		module_region = re.search("MODULES[^\w]+\[([^\]]+)]", config_content)
+		if module_region is not None:
+			print "currently loaded:", MODULES
+			for load_module in re.finditer("(?:\")?(?P<module_name>[^,\"]+)(?:\")?", module_region.group(1)):
+				print "attempting to import %s" % load_module.group("module_name")
+				external_module = __import__(load_module.group("module_name"), globals(), locals())
+				MODULES.append(external_module)
+		config_fp.close()
+		if config["NETWORK_NAME"] is None or config["BIND_ADDRESS"] is None or config["PORT"] is None or config["VHOST"] is None or config["SSL_CERT"] is None or config["SSL_KEY"] is None:
+			return False
+		return True
+	except:
+		return False
 
-MOTD_BODY = [
-  "Standard IRC clients connect to port 6667*",
-  "SSL IRC clients connect to port 7000",
-  "",
-  "",
-  "*) temporarily enabled."
-  ] 
-
+if load_config(config_path) is False:
+	print "config error."
+	exit(0)
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind((HOST, PORT))
+print "addr:", config["BIND_ADDRESS"],"port:", config["PORT"]
+s.bind((config["BIND_ADDRESS"], config["PORT"]))
 s.listen(5)
-print 'herp derp ircd v0.1'
+print 'pyIRCd v0.1'
 accept_thread = threading.Thread(target=accept_clients)
 accept_thread.start()
 sleep(1)
