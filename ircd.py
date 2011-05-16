@@ -148,7 +148,7 @@ def irc_handler(conn, addr):
 					client.reply("ERR_NEEDMOREPARAMS", "Not enough parameters")
 
 			# welcome + motd
-			if client.nick != "herpderp" and len(client.user) > 0 and client.registered is False:
+			if client.nick != "tempnick" and len(client.user) > 0 and client.registered is False:
 				client.host = "user.%s" % config["VHOST"]
 				print "flagging %s!%s@%s as registered..." % (client.nick, client.ident, client.host)
 				client.reply("001", "Welcome to %s, %s" % (config["NETWORK_NAME"], client.nick))
