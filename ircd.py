@@ -22,6 +22,7 @@ class irc_client():
 		self.passwd = passwd
 		self.host = host
 		self.port = port
+		self.channels = []
 		self.connection = connection
 		self.registered = False
 		self.ircop = False
@@ -48,7 +49,6 @@ class irc_client():
 
 	def PING_chain(self):
 		valid_from = datetime.now() + timedelta(seconds=60)
-		print "first ping req from us to client at", valid_from
 		while (1):
 			if datetime.now() >= valid_from:
 				if self.PING() is False:
@@ -61,7 +61,6 @@ class irc_client():
 			ping_request = ''
 			for i in range(8):
 			  ping_request += choice(string.letters+string.digits)
-			print "PING :%s" % ping_request
 			self.connection.send("PING :%s\n" % ping_request)
 			return True
 		except:
@@ -127,7 +126,6 @@ def irc_handler(conn, addr):
 				continue
 
 			if data[0:5] == "PONG ":
-				print "got pong %s" % data[5:]
 				continue
 
 			if data[0:4] == "NICK":
