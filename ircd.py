@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import re, socket, string, sys, threading
+import re, socket, string, sys, threading, time
 from time import sleep
 from datetime import timedelta, datetime, date
 from random import choice
@@ -16,18 +16,26 @@ class irc_client():
 	def __init__(self, connection, nick="herpderp", user="", passwd="", host="127.0.0.1", port=22):
 		self.nick = nick
 		self.user = user
+		self.ident = None
+		self.ip = None
+		self.realname = None
 		self.passwd = passwd
 		self.host = host
 		self.port = port
 		self.connection = connection
 		self.registered = False
+		self.ircop = False
+		self.last_action = None
+		self.signon = None
 		ping_thread = threading.Thread(target=self.PING_chain)
 		ping_thread.start()
 		
-	def reply(self, code, text):
+	def reply(self, code, text, prefix=":"):
+		if prefix is None:
+			prefix = ''
 		if text[-1] != '\n':
 			text += '\n'
-		self.connection.send(":%s %s %s :%s" % (config["VHOST"], self.error_code(code), self.nick, text))
+		self.connection.send(":%s %s %s %s%s" % (config["VHOST"], self.error_code(code), self.nick, prefix, text))
 
 	def error_code(self, error):
 		try:
@@ -39,13 +47,13 @@ class irc_client():
 				return None
 
 	def PING_chain(self):
-		valid_from = datetime.now() + timedelta(seconds=15)
+		valid_from = datetime.now() + timedelta(seconds=60)
 		print "first ping req from us to client at", valid_from
 		while (1):
 			if datetime.now() >= valid_from:
 				if self.PING() is False:
 					break
-				valid_from = datetime.now() + timedelta(seconds=15)
+				valid_from = datetime.now() + timedelta(seconds=60)
 			sleep(5)
 
 	def PING(self):
@@ -84,7 +92,9 @@ def accept_clients():
 
 def irc_handler(conn, addr):
 	client = irc_client(conn)
+	client.signon = int(time.time())
 	while 1:
+		client.last_action = int(time.time())
 		try:
 			conn.setblocking(1)
 		except:
@@ -110,9 +120,11 @@ def irc_handler(conn, addr):
 			if data[0:5] == "PING ":
 				print "got ping, replying PONG %s" % data[5:]
 				conn.send("PONG %s\n" % data[5:])
+				continue
 
 			if data[0:5] == "PONG ":
 				print "got pong %s" % data[5:]
+				continue
 
 			if data[0:4] == "NICK":
 				try:
@@ -127,14 +139,19 @@ def irc_handler(conn, addr):
 			if data[0:5] == "USER ":
 				try:
 					client.user = data[5:]
+					parse_user = re.search("^(?P<ident>[^ ]+) \"(?P<mail>[^\"]+)?\" \"(?P<ip>[^\"]+)\" :(?P<realname>.+)$", client.user)
+					client.ident = parse_user.group("ident")
+					client.ip = parse_user.group("ip")
+					client.realname = parse_user.group("realname")
 				except:
 					client.reply("ERR_NEEDMOREPARAMS", "Not enough parameters")
-				continue
 
 			# welcome + motd
 			if client.nick != "herpderp" and len(client.user) > 0 and client.registered is False:
-				print "flagging %s@%s as registered..." % (client.nick, client.user)
+				client.host = "user.%s" % config["VHOST"] 
+				print "flagging %s!%s@%s as registered..." % (client.nick, client.ident, client.host)
 				client.reply("001", "Welcome to %s, %s" % (config["NETWORK_NAME"], client.nick))
+				client.reply("002", "mangled host set to %s" % client.host)
 				client.display_motd()
 				client.registered = True
 				continue
@@ -153,19 +170,9 @@ def irc_handler(conn, addr):
 				except:
 					client.reply("ERR_UNKNOWNMODE", "Unknown mode")
 
-			if data[0:8] == "USERHOST":
-				try:
-					client.reply("RPL_USERHOST", "%s=+%s@%s" % (client.nick, "hidden", client.host))
-				except:
-					client.reply("ERR_UNKNOWNCOMMAND", "Unknown command")
-
-			if data[0:5] == "WHOIS":
-				conn.send(":%s :End of /WHOIS list\n" % client.nick)
-
 			for module in MODULES:
 				if data[0:len(module.module_config["trigger"])+1] == module.module_config["trigger"]+" ":
 					try:
-						print getattr(module, module.module_config["handle"])
 						print "sending data", data[len(module.module_config["trigger"])+1:], "to function named:", module.module_config["handle"]
 						getattr(module, module.module_config["handle"])(client, data[len(module.module_config["trigger"])+1:])
 					except:
@@ -210,7 +217,7 @@ def load_config(config_file):
 			config["MOTD_FILE"] = motd_setting.group(1)
 		module_region = re.search("MODULES[^\w]+\[([^\]]+)]", config_content)
 		if module_region is not None:
-			for load_module in re.finditer("(?:\")?(?P<module_name>[^,\"]+)(?:\")?", module_region.group(1)):
+			for load_module in re.finditer("(?:\")(?P<module_name>[^,\"]+)(?:\")", module_region.group(1)):
 				MODULES.append(__import__(load_module.group("module_name"), globals(), locals()))
 				print "Loaded module: %s" % load_module.group("module_name")
 		config_fp.close()
