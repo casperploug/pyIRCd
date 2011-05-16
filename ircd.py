@@ -27,7 +27,16 @@ class irc_client():
 	def reply(self, code, text):
 		if text[-1] != '\n':
 			text += '\n'
-		self.connection.send(":%s %s %s :%s" % (config["VHOST"], code, self.nick, text))
+		self.connection.send(":%s %s %s :%s" % (config["VHOST"], self.error_code(code), self.nick, text))
+
+	def error_code(self, error):
+		try:
+			return IRC_CODES[error]
+		except:
+			if re.search("[0-9]{3}", error) is not None:
+				return error
+			else:
+				return None
 
 	def PING_chain(self):
 		valid_from = datetime.now() + timedelta(seconds=15)
@@ -51,14 +60,14 @@ class irc_client():
 			return False
 
 	def display_motd(self):
-		self.reply(RPL_MOTDSTART, "- %s Message of the day - " % config["VHOST"])
+		self.reply("RPL_MOTDSTART", "- %s Message of the day - " % config["VHOST"])
 		try:
 			motd_fp = open(MOTD_FILE)
 			for motd_line in motd_fp:
-				self.reply(RPL_MOTD, "- %s" % motd_line)
+				self.reply("RPL_MOTD", "- %s" % motd_line)
 		except:
 			pass
-		self.reply(RPL_ENDOFMOTD, "End of /MOTD command")
+		self.reply("RPL_ENDOFMOTD", "End of /MOTD command")
 
 def accept_clients():
 	while 1:
@@ -112,27 +121,15 @@ def irc_handler(conn, addr):
 					print "%s changes nick to %s" % (oldnick, client.nick)
 					conn.send(":%s NICK %s\n" % (oldnick, client.nick))
 				except:
-					client.reply(ERR_NONICKNAMEGIVEN, "No nickname given")
+					client.reply("ERR_NONICKNAMEGIVEN", "No nickname given")
+				continue
 
 			if data[0:5] == "USER ":
 				try:
 					client.user = data[5:]
 				except:
-					client.reply(ERR_NEEDMOREPARAMS, "Not enough parameters")
-
-			if data[0:4] == "MODE":
-				try:
-					mode_chunks = data[5:].split()
-					client.mode = mode_chunks[1]
-					conn.send(":%s MODE %s :%s\n" % (client.nick, client.nick, client.mode))
-				except:
-					client.reply(ERR_UNKNOWNMODE, "Unknown mode")
-
-			if data[0:8] == "USERHOST":
-				try:
-					client.reply(RPL_USERHOST, "%s=+%s@%s" % (client.nick, "hidden", client.host))
-				except:
-					client.reply(ERR_UNKNOWNCOMMAND, "Unknown command")
+					client.reply("ERR_NEEDMOREPARAMS", "Not enough parameters")
+				continue
 
 			# welcome + motd
 			if client.nick != "herpderp" and len(client.user) > 0 and client.registered is False:
@@ -141,22 +138,39 @@ def irc_handler(conn, addr):
 				client.display_motd()
 				client.registered = True
 				continue
+				if client.registered is False:
+					client.reply("ERR_NOTREGISTERED", "You have not registered")
+
 			if client.registered is False:
-				client.reply(ERR_NOTREGISTERED, "You have not registered")
+				# only allow the following commands to registered clients.
+				continue
+
+			if data[0:4] == "MODE":
+				try:
+					mode_chunks = data[5:].split()
+					client.mode = mode_chunks[1]
+					conn.send(":%s MODE %s :%s\n" % (client.nick, client.nick, client.mode))
+				except:
+					client.reply("ERR_UNKNOWNMODE", "Unknown mode")
+
+			if data[0:8] == "USERHOST":
+				try:
+					client.reply("RPL_USERHOST", "%s=+%s@%s" % (client.nick, "hidden", client.host))
+				except:
+					client.reply("ERR_UNKNOWNCOMMAND", "Unknown command")
 
 			if data[0:5] == "WHOIS":
 				conn.send(":%s :End of /WHOIS list\n" % client.nick)
 
-			print "Checking for (external) module triggers:"
 			for module in MODULES:
 				if data[0:len(module.module_config["trigger"])+1] == module.module_config["trigger"]+" ":
-#					try:
+					try:
 						print getattr(module, module.module_config["handle"])
 						print "sending data", data[len(module.module_config["trigger"])+1:], "to function named:", module.module_config["handle"]
 						getattr(module, module.module_config["handle"])(client, data[len(module.module_config["trigger"])+1:])
-#					except:
-#						print "External module error"
-#						client.reply(ERR_NEEDMOREPARAMS, "An error occurred. Please report to an IRCOP.")
+					except:
+						print "External module error"
+						client.reply("ERR_NEEDMOREPARAMS", "An error occurred. Please report to an IRCOP.")
 	conn.close()
 	print "closed connection from", addr
 
