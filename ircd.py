@@ -77,6 +77,8 @@ class irc_client():
 			pass
 		self.reply("RPL_ENDOFMOTD", "End of /MOTD command")
 
+clients = []
+
 def accept_clients():
 	while 1:
 		try:
@@ -92,6 +94,7 @@ def accept_clients():
 
 def irc_handler(conn, addr):
 	client = irc_client(conn)
+	clients.append(client)
 	client.signon = int(time.time())
 	while 1:
 		client.last_action = int(time.time())
@@ -114,6 +117,7 @@ def irc_handler(conn, addr):
 			print "received[",data,"]"
 			if data[0:6] == "QUIT :":
 				print "%s quit" % client.nick
+				clients.remove(client)
 				conn.close()
 				break
 
@@ -148,7 +152,7 @@ def irc_handler(conn, addr):
 
 			# welcome + motd
 			if client.nick != "herpderp" and len(client.user) > 0 and client.registered is False:
-				client.host = "user.%s" % config["VHOST"] 
+				client.host = "user.%s" % config["VHOST"]
 				print "flagging %s!%s@%s as registered..." % (client.nick, client.ident, client.host)
 				client.reply("001", "Welcome to %s, %s" % (config["NETWORK_NAME"], client.nick))
 				client.reply("002", "mangled host set to %s" % client.host)
@@ -174,11 +178,18 @@ def irc_handler(conn, addr):
 				if data[0:len(module.module_config["trigger"])+1] == module.module_config["trigger"]+" ":
 					try:
 						print "sending data", data[len(module.module_config["trigger"])+1:], "to function named:", module.module_config["handle"]
-						getattr(module, module.module_config["handle"])(client, data[len(module.module_config["trigger"])+1:])
+						if module.module_config["all_clients"] is True:
+							getattr(module, module.module_config["handle"])(client, clients, data[len(module.module_config["trigger"])+1:])
+						else:
+							getattr(module, module.module_config["handle"])(client, data[len(module.module_config["trigger"])+1:])
 					except:
 						print "External module error"
 						client.reply("ERR_NEEDMOREPARAMS", "An error occurred. Please report to an IRCOP.")
 	conn.close()
+	try:
+		clients.remove(client)
+	except:
+		pass
 	print "closed connection from", addr
 
 # irc settings. define in pyircd.conf
