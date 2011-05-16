@@ -13,7 +13,7 @@ from irc_codes import *
 MODULES = []
 
 class irc_client():
-	def __init__(self, connection, nick="herpderp", user="", passwd="", host="127.0.0.1", port=22):
+	def __init__(self, connection, nick="tempnick", user="", passwd="", host="127.0.0.1"):
 		self.nick = nick
 		self.user = user
 		self.ident = None
@@ -21,7 +21,6 @@ class irc_client():
 		self.realname = None
 		self.passwd = passwd
 		self.host = host
-		self.port = port
 		self.channels = []
 		self.connection = connection
 		self.registered = False
