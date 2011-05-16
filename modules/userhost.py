@@ -12,6 +12,6 @@ module_config = {
 
 def handle_userhost_request(client, text):
 	try:
-		client.reply("RPL_USERHOST", "%s=+%s@%s" % (client.nick, "hidden", client.host))
+		client.reply("RPL_USERHOST", "%s=+%s@%s" % (client.nick, client.ident, client.host))
 	except:
 		client.reply("ERR_NEEDMOREPARAMS", "Usage: /USERHOST\nYou can only lookup your own nick.")
