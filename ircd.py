@@ -163,14 +163,6 @@ def irc_handler(conn, addr):
 				# only allow the following commands to registered clients.
 				continue
 
-			if data[0:4] == "MODE":
-				try:
-					mode_chunks = data[5:].split()
-					client.mode = mode_chunks[1]
-					conn.send(":%s MODE %s :%s\n" % (client.nick, client.nick, client.mode))
-				except:
-					client.reply("ERR_UNKNOWNMODE", "Unknown mode")
-
 			for module in MODULES:
 				if data[0:len(module.module_config["trigger"])+1] == module.module_config["trigger"]+" ":
 					try:
