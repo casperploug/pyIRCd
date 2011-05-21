@@ -5,6 +5,7 @@ from datetime import timedelta, datetime, date
 from random import choice
 from OpenSSL import SSL
 import ssl
+import signal # test
 
 sys.path.append("core")
 sys.path.append("modules")

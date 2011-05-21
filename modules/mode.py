@@ -11,7 +11,7 @@ module_config = {
 	"all_clients":True
 }
 
-supported_modes = "n t m i"
+supported_modes = "ntmib"
 
 def handle_mode_request(client, clients, text):
 	try:
@@ -21,7 +21,7 @@ def handle_mode_request(client, clients, text):
 		set_modes = []
 		
 		for mode in re.finditer("([\+\-])([a-z])", modes):
-			if mode.group(2) in supported_modes.split():
+			if mode.group(2) in supported_modes:
 				set_modes.append(mode.group(1)+mode.group(2))
 			else:
 				client.reply("ERR_UNKNOWNMODE", "Mode %s is not supported." % mode.group(2))

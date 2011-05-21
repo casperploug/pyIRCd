@@ -1,0 +1,58 @@
+join (create) chan:
+efnet
+C:  JOIN #chan
+S:  :nick!ident@chost JOIN :#chan
+S:  :shost MODE #chan +nt
+S:  :shost 353 nick = #chan :@nick
+S:  :shost 366 nick #chan :End of /NAMES list.
+-- on freenode (create chan)
+S:  :nick!ident@chost JOIN :#chan
+S:  :shost MODE #chan +ns
+S:  :shost 353 nick @ #chan :@nick    <- note the nick _@_ #chan
+S:  :shost 366 nick #chan :End of /NAMES list.
+
+WHO (adium, freenode):
+C:  WHO #chan
+S:  :shost 352 nick #chan oident ochost oshost onick H@ :0 orealname <- unsure what is local/remote
+S:  :shost 315 nick #chan :End of /WHO list.
+
+WHOIS (adium, freenode):
+C:  WHOIS onick
+S:  :shost 311 nick onick oident ohost * :orealname
+S:  :shost 319 nick onick :@#ochan1 +#ochan2
+S:  :shost 312 nick onick oshost :"Location"
+S:  :shost 378 nick onick :is connecting from *@ohost oip
+S:  :shost 317 nick onick idle_time signon_time :seconds idle, signon time
+S:  :shost 318 nick onick :End of /WHOIS list.
+
+part chan:
+C:  PART #chan
+S:  :nick!ident@chost PART #chan
+
+(mode)
+C:  MODE #chan
+S:  :shost 324 nick #chan +tn
+S:  :shost 329 nick #chan <uint>    <- ???
+
+msg user:
+C:  PRIVMSG target_nick :text
+S:  none
+
+receive msg:
+S:  :nick!ident@chost PRIVMSG from_nick :text
+
+msg (no such) user:
+C:  PRIVMSG target_nick :text
+S:  :shost 401 nick target_nick :No such nick/channel
+
+
+set topic:
+C:  TOPIC #chan :topic text
+S:  :nick!ident@chost TOPIC #chan :topic text
+
+msg chan:
+C:  PRIVMSG #chan :text
+
+user has quit:
+(e.g. :nick!ident@chost QUIT :Ping timeout: 250 seconds)
+S:  :nick!ident@chost QUIT :reason
