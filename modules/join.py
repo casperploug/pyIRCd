@@ -35,7 +35,7 @@ def handle_join_request(client, channels, text):
 		client.reply("RPL_ENDOFNAMES", "%s :End of /NAMES list." % channel, None)
 	else:
 		error_msg = "disallowed channel.\n<channel> must be at least 3, and at most 40 chars\nallowed chars: a-z_- and 0-9.\n\nExample:\t/JOIN #herp.derp"
-		self.connection.send(":%s %s %s :%s\n" % (VHOST, self.error_code("ERR_NEEDMOREPARAMS"), self.nick, error_msg))
+		client.connection.send(":%s %s %s :%s\n" % (VHOST, self.error_code("ERR_NEEDMOREPARAMS"), self.nick, error_msg))
 
 def join_helper(text):
 	channel_name = re.search("(%s)" % valid_mask, text)
