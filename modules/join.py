@@ -30,8 +30,7 @@ def handle_join_request(client, channels, text):
 			users["client"].connection.send(":%s!%s@%s JOIN :%s\n" % (client.nick, client.ident, client.host, channel))
 
 		for nick in channel_nicks:
-			client.reply("RPL_NAMREPLY", "= %s :%s" % (channel, nick), None) # watch out?
-		client.reply("RPL_NAMREPLY", "= %s :@lol @herp +derp" % (channel), None)
+			client.reply("RPL_NAMREPLY", "= %s :%s" % (channel, nick), None)
 		client.reply("RPL_ENDOFNAMES", "%s :End of /NAMES list." % channel, None)
 	else:
 		error_msg = "disallowed channel.\n<channel> must be at least 3, and at most 40 chars\nallowed chars: a-z_- and 0-9.\n\nExample:\t/JOIN #herp.derp"
