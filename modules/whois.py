@@ -8,7 +8,7 @@ import re, sys, time
 module_config = {
 	"trigger":"WHOIS",
 	"handle":"handle_whois_request",
-	"all_clients":False
+	"include channels":False
 }
 
 def handle_whois_request(client, text):

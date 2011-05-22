@@ -12,6 +12,7 @@ sys.path.append("modules")
 
 from irc_codes import *
 MODULES = []
+MODES = []
 
 class irc_client():
 	def __init__(self, connection, nick="tempnick", user="", passwd="", host="127.0.0.1"):
@@ -22,7 +23,7 @@ class irc_client():
 		self.realname = None
 		self.passwd = passwd
 		self.host = host
-		self.channels = []
+		self.channels = {}
 		self.connection = connection
 		self.registered = False
 		self.ircop = False
@@ -65,6 +66,21 @@ class irc_client():
 			return True
 		except:
 			return False
+			
+	def channel(self, find_channel):
+		try:
+			return channels[find_channel]
+		except:
+			return None
+
+	def modes(self):
+		return MODES
+
+	def user(self, nick):
+		for client in clients:
+			if client.nick == nick:
+				return client
+		return None
 
 	def display_motd(self):
 		self.reply("RPL_MOTDSTART", "- %s Message of the day - " % config["VHOST"])
@@ -77,6 +93,7 @@ class irc_client():
 		self.reply("RPL_ENDOFMOTD", "End of /MOTD command")
 
 clients = []
+channels = {}
 
 def accept_clients():
 	while 1:
@@ -155,10 +172,12 @@ def irc_handler(conn, addr):
 				client.reply("001", "Welcome to %s, %s" % (config["NETWORK_NAME"], client.nick))
 				client.reply("002", "mangled host set to %s" % client.host)
 				client.display_motd()
+# maybe make this as a fuction, and allow for config ONJOIN_FORCE to force join/mode/whatever for users connecting
+#				for command in config["ONJOIN_FORCE"]:
+#					for module in MODULES:
+						
 				client.registered = True
 				continue
-				if client.registered is False:
-					client.reply("ERR_NOTREGISTERED", "You have not registered")
 
 			if client.registered is False:
 				# only allow the following commands to registered clients.
@@ -166,15 +185,15 @@ def irc_handler(conn, addr):
 
 			for module in MODULES:
 				if data[0:len(module.module_config["trigger"])+1] == module.module_config["trigger"]+" ":
-					try:
+#					try:
 						print "sending data", data[len(module.module_config["trigger"])+1:], "to function named:", module.module_config["handle"]
-						if module.module_config["all_clients"] is True:
-							getattr(module, module.module_config["handle"])(client, clients, data[len(module.module_config["trigger"])+1:])
+						if module.module_config["include channels"] is True:
+							getattr(module, module.module_config["handle"])(client, channels, data[len(module.module_config["trigger"])+1:])
 						else:
 							getattr(module, module.module_config["handle"])(client, data[len(module.module_config["trigger"])+1:])
-					except:
-						print "External module error"
-						client.reply("ERR_NEEDMOREPARAMS", "An error occurred. Please report to an IRCOP.")
+#					except:
+#						print "External module error"
+#						client.reply("ERR_NEEDMOREPARAMS", "An error occurred. Please report to an IRCOP.")
 	conn.close()
 	try:
 		clients.remove(client)
@@ -199,7 +218,7 @@ except:
 	config_path = "pyircd.conf"
 
 def load_config(config_file):
-	try:
+#	try:
 		config_fp = open(config_file)
 		config_content = config_fp.read()
 		for network_name_setting in re.finditer("NETWORK_NAME[^\w]+([^\n\";]+)", config_content):
@@ -225,8 +244,8 @@ def load_config(config_file):
 		if config["NETWORK_NAME"] is None or config["BIND_ADDRESS"] is None or config["PORT"] is None or config["VHOST"] is None or config["SSL_CERT"] is None or config["SSL_KEY"] is None:
 			return False
 		return True
-	except:
-		return False
+#	except:
+#		return False
 
 if load_config(config_path) is False:
 	print "config error."

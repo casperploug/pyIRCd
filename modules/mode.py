@@ -8,33 +8,46 @@ import re, sys, time
 module_config = {
 	"trigger":"MODE",
 	"handle":"handle_mode_request",
-	"all_clients":True
+	"include channels":True
 }
 
-supported_modes = "ntmib"
+supported_modes = "nt"
 
-def handle_mode_request(client, clients, text):
+def handle_mode_request(client, channels, text):
 	try:
 		mode_chunks = text.split()
 		target = mode_chunks[0]
-		modes = mode_chunks[1]
-		set_modes = []
-		
-		for mode in re.finditer("([\+\-])([a-z])", modes):
-			if mode.group(2) in supported_modes:
-				set_modes.append(mode.group(1)+mode.group(2))
+		try:
+			modes = mode_chunks[1]
+		except:
+			modes = None
+		if modes is not None:
+			set_modes = []
+
+			for mode in re.finditer("([\+\-])([a-z])(?: (?P<param>[a-zA-Z0-9]+))?", modes):
+				if mode.group(2) in supported_modes:
+					set_modes.append(mode.group(1)+mode.group(2))
+				else:
+					client.reply("ERR_UNKNOWNMODE", "Mode %s is not supported." % mode.group(2))
+			if len(set_modes) is 0:
+				return
+			if target == client.nick:
+				client.mode = ''.join(set_modes)
+				pass
 			else:
-				client.reply("ERR_UNKNOWNMODE", "Mode %s is not supported." % mode.group(2))
-		
-		if target == client.nick:
-			client.mode = ''.join(set_modes)
-			client.connection.send(":%s MODE %s :%s\n" % (client.nick, target, client.mode))
-		elif '@'+target in client.channels:
-			pass
-			# channel.mode = ''.join(set_modes)
-			# for other_client in clients:
-			# 	other_client.reply(":%s MODE %s :%s" % (other_client.nick, target, channel.mode))
+				for user in client.channels[target]["users"]:
+					if user["client"] == client and user["prefix"] not in "~&@":
+						client.reply("ERR_UNKNOWNMODE", "You're not allowed to set mode for %s" % target)
+						return
+			for user in client.channels[target]["users"]:
+				user["client"].connection.send(":%s MODE %s :%s\n" % (client.nick, target, client.mode))
 		else:
-			client.reply("ERR_UNKNOWNMODE", "You're not allowed to set mode for %s" % target)
+			if re.search("^#[a-zA-Z0-9_\-]{3,40}", target) is not None and target in client.channels:
+				channel_info = client.channels[target]
+				for user in channel_info["users"]:
+					user["client"].reply("RPL_CHANNELMODEIS", "%s %s" % (target, channel_info["mode"]), None) # results in: client.nick sets mode: +nt - wrong text format?
+					user["client"].reply("329", "%s %i" % (target, int(time.time())), None) # created (now)
+			else:
+				client.reply("ERR_UNKNOWNMODE", "You're not on %s" % target)
 	except:
 		client.reply("ERR_UNKNOWNMODE", "Unknown mode")

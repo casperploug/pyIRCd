@@ -8,7 +8,7 @@ import re, sys
 module_config = {
 	"trigger":"USERHOST",
 	"handle":"handle_userhost_request",
-	"all_clients":False
+	"include channels":False
 }
 
 def handle_userhost_request(client, text):

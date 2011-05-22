@@ -10,10 +10,10 @@ valid_mask = "[a-zA-Z0-9\.\-]{3,40}"
 module_config = {
 	"trigger":"SETHOST",
 	"handle":"handle_sethost_request",
-	"all_clients":True
+	"include channels":True
 }
 
-def handle_sethost_request(client, clients, text):
+def handle_sethost_request(client, channels, text):
 	host = sethost_helper(text)
 	if host is not None:
 		# set host
@@ -28,7 +28,7 @@ def handle_sethost_request(client, clients, text):
 		#		other_client.reply("001", "hey, this guy changed his host!")
 	else:
 		error_msg = "disallowed host.\nUsage:\n\t/SETHOST <host>[.blurk.org]\n\t\t<host> must be at least 3, and at most 40 chars\n\t\t<host> allowed chars: a-z.- and 0-9.\n\n\tExample:\t/SETHOST herp.derp\n\t\t\t/SETHOST user.blurk.org"
-		self.connection.send(":%s %s %s :%s\n" % (VHOST, self.error_code("ERR_NEEDMOREPARAMS"), self.nick, error_msg))
+		client.connection.send(":%s %s %s :%s\n" % (VHOST, client.error_code("ERR_NEEDMOREPARAMS"), client.nick, error_msg))
 
 def sethost_helper(text):
 	capture = re.search("^(%s)" % valid_mask, text)
