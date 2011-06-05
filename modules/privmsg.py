@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-	JOIN module for pyIRCd v0.1
+	PRIVMSG module for pyIRCd v0.1
 """
 import re, sys
 

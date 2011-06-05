@@ -19,7 +19,7 @@ def handle_join_request(client, channels, text):
 		if client.channel(channel) is None:
 			channels[channel] = {"users":[{"client":client, "prefix":"@"}], "mode":"+nt"}
 		else:
-			client.channel(channel)["users"].append(client)
+			client.channel(channel)["users"].append({"client":client, "prefix":""})
 		client.channels[channel] = client.channel(channel)
 		# get users on chan
 		channel_nicks = []
