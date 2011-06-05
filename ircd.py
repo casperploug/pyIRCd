@@ -76,7 +76,8 @@ class irc_client():
 	def modes(self):
 		return MODES
 
-	def user(self, nick):
+	def find_user(self, nick):
+		print "looking for user with nick: %s" % nick
 		for client in clients:
 			if client.nick == nick:
 				return client
