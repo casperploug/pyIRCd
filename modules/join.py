@@ -16,6 +16,9 @@ module_config = {
 
 def handle_join_request(client, channels, text):
 	channel = join_helper(text)
+	join_chan(client, channels, channel)
+
+def join_chan(client, channels, channel):
 	if channel is not None:
 		# to do: ban/invite flag, not accounted for atm.
 		if client.channel(channel) is None:
