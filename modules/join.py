@@ -9,7 +9,9 @@ valid_mask = "^#[a-zA-Z0-9_\-]{3,40}"
 module_config = {
 	"trigger":"JOIN",
 	"handle":"handle_join_request",
-	"include channels":True
+	"include channels":True,
+	"event_handle":"handle_event_join",
+	"events":"registered"
 }
 
 def handle_join_request(client, channels, text):
@@ -34,7 +36,12 @@ def handle_join_request(client, channels, text):
 		client.reply("RPL_ENDOFNAMES", "%s :End of /NAMES list." % channel, None)
 	else:
 		error_msg = "disallowed channel.\n<channel> must be at least 3, and at most 40 chars\nallowed chars: a-z_- and 0-9.\n\nExample:\t/JOIN #herp.derp"
-		client.connection.send(":%s %s %s :%s\n" % (VHOST, self.error_code("ERR_NEEDMOREPARAMS"), self.nick, error_msg))
+		client.connection.send(":%s %s %s :%s\n" % (client.vhost(), client.error_code("ERR_NEEDMOREPARAMS"), client.nick, error_msg))
+
+def handle_event_join(event, client, channels):
+	if event == "registered":
+		error_msg = "this is an example of eventdriven calls"
+		client.connection.send(":%s %s %s :%s\n" % (client.vhost(), client.error_code("ERR_NEEDMOREPARAMS"), client.nick, error_msg))
 
 def join_helper(text):
 	channel_name = re.search("(%s)" % valid_mask, text)

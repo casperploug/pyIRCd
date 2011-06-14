@@ -39,6 +39,9 @@ class irc_client():
 			text += '\n'
 		self.connection.send(":%s %s %s %s%s" % (config["VHOST"], self.error_code(code), self.nick, prefix, text))
 
+	def vhost(self):
+		return config["VHOST"]
+
 	def error_code(self, error):
 		try:
 			return IRC_CODES[error]
@@ -92,6 +95,22 @@ class irc_client():
 		except:
 			pass
 		self.reply("RPL_ENDOFMOTD", "End of /MOTD command")
+
+	def call_event(self, event_name):
+		print event_name, "was raised!"
+		for module in MODULES:
+			module_events = None
+			try:
+				module_events = module.module_config["events"]
+			except:
+				continue
+			if event_name in module_events:
+				# NOTE! atm. only send client and, if asked to, channels.
+				print "event", event_name," hit. running event function named:", module.module_config["event_handle"]
+				if module.module_config["include channels"] is True:
+					getattr(module, module.module_config["event_handle"])(event_name, self, channels)
+				else:
+					getattr(module, module.module_config["event_handle"])(event_name, self)
 
 clients = []
 channels = {}
@@ -177,7 +196,7 @@ def irc_handler(conn, addr):
 #				for command in config["ONJOIN_FORCE"]:
 #					for module in MODULES:
 				# using events
-				call_event("logged_in")
+				client.call_event("registered")
 						
 				client.registered = True
 				continue
@@ -203,21 +222,6 @@ def irc_handler(conn, addr):
 	except:
 		pass
 	print "closed connection from", addr
-
-def call_event(event_name):
-	for module in MODULES:
-		event = None
-		try:
-			event = module.module_config["event"]
-		except:
-			continue
-		if event == event_name:
-			# NOTE! atm. only send client and, if asked to, channels.
-			print "event", event_name," hit. sending data", data[len(module.module_config["trigger"])+1:], "to function named:", module.module_config["handle"]
-			if module.module_config["include channels"] is True:
-				getattr(module, module.module_config["handle"])(client, channels)
-			else:
-				getattr(module, module.module_config["handle"])(client)
 
 # irc settings. define in pyircd.conf
 config = {
