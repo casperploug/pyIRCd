@@ -4,7 +4,7 @@
 """
 import re, sys
 
-valid_mask = "(?P<name>(?P<is_chan>#)?[a-zA-Z0-9\-_]+) :(?P<msg>[a-zA-Z0-9\-_,\. ]+)" # similar to nick allowed mask
+valid_mask = "(?P<name>(?P<is_chan>#)?[a-zA-Z0-9\-_]+) :(?P<msg>.+)" # similar to nick allowed mask
 
 # module
 module_config = {
@@ -30,7 +30,7 @@ def handle_privmsg_request(client, channels, text):
 			else:
 				client.reply("ERR_NOSUCHNICK", "No such nick/channel")
 	else:
-		client.reply("ERR_NEEDMOREPARAMS", "invalid msg - probably unsupported chars. currently only a-zA-Z0-9 -_,. allowed.")
+		client.reply("ERR_NEEDMOREPARAMS", "invalid msg.")
 
 def privmsg_helper(text):
 	target = {}

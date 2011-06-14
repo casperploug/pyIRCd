@@ -176,6 +176,8 @@ def irc_handler(conn, addr):
 # maybe make this as a fuction, and allow for config ONJOIN_FORCE to force join/mode/whatever for users connecting
 #				for command in config["ONJOIN_FORCE"]:
 #					for module in MODULES:
+				# using events
+				call_event("logged_in")
 						
 				client.registered = True
 				continue
@@ -201,6 +203,21 @@ def irc_handler(conn, addr):
 	except:
 		pass
 	print "closed connection from", addr
+
+def call_event(event_name):
+	for module in MODULES:
+		event = None
+		try:
+			event = module.module_config["event"]
+		except:
+			continue
+		if event == event_name:
+			# NOTE! atm. only send client and, if asked to, channels.
+			print "event", event_name," hit. sending data", data[len(module.module_config["trigger"])+1:], "to function named:", module.module_config["handle"]
+			if module.module_config["include channels"] is True:
+				getattr(module, module.module_config["handle"])(client, channels)
+			else:
+				getattr(module, module.module_config["handle"])(client)
 
 # irc settings. define in pyircd.conf
 config = {
