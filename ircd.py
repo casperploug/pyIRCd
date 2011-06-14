@@ -15,11 +15,11 @@ MODULES = []
 MODES = []
 
 class irc_client():
-	def __init__(self, connection, nick="tempnick", user="", passwd="", host="127.0.0.1"):
+	def __init__(self, connection, addr, nick="tempnick", user="", passwd="", host="127.0.0.1"):
 		self.nick = nick
 		self.user = user
 		self.ident = None
-		self.ip = None
+		self.ip = addr
 		self.realname = None
 		self.passwd = passwd
 		self.host = host
@@ -97,7 +97,6 @@ class irc_client():
 		self.reply("RPL_ENDOFMOTD", "End of /MOTD command")
 
 	def call_event(self, event_name):
-		print event_name, "was raised!"
 		for module in MODULES:
 			module_events = None
 			try:
@@ -105,12 +104,12 @@ class irc_client():
 			except:
 				continue
 			if event_name in module_events:
-				# NOTE! atm. only send client and, if asked to, channels.
 				print "event", event_name," hit. running event function named:", module.module_config["event_handle"]
-				if module.module_config["include channels"] is True:
-					getattr(module, module.module_config["event_handle"])(event_name, self, channels)
-				else:
-					getattr(module, module.module_config["event_handle"])(event_name, self)
+				try:
+					if module.module_config["include channels"] is True:
+						return getattr(module, module.module_config["event_handle"])(event_name, self, channels)
+				except:
+					return getattr(module, module.module_config["event_handle"])(event_name, self)
 
 clients = []
 channels = {}
@@ -129,7 +128,8 @@ def accept_clients():
 	s.close()
 
 def irc_handler(conn, addr):
-	client = irc_client(conn)
+	client = irc_client(conn, addr)
+	client.call_event("connect")
 	clients.append(client)
 	client.signon = int(time.time())
 	while 1:
@@ -167,26 +167,33 @@ def irc_handler(conn, addr):
 
 			if data[0:4] == "NICK":
 				try:
+					if client.find_user(data[5:]) is not None:
+						client.reply("ERR_NICKNAMEINUSE", "Nickname is already in use")
+						continue
 					oldnick = client.nick
 					client.nick = data[5:]
 					print "%s changes nick to %s" % (oldnick, client.nick)
-					conn.send(":%s NICK %s\n" % (oldnick, client.nick))
+					conn.send(":%s NICK %s\n" % (client.nick, client.nick))
 				except:
 					client.reply("ERR_NONICKNAMEGIVEN", "No nickname given")
-				continue
 
 			if data[0:5] == "USER ":
 				try:
 					client.user = data[5:]
 					parse_user = re.search("^(?P<ident>[^ ]+) \"(?P<mail>[^\"]+)?\" \"(?P<ip>[^\"]+)\" :(?P<realname>.+)$", client.user)
 					client.ident = parse_user.group("ident")
-					client.ip = parse_user.group("ip")
+					# client.ip = parse_user.group("ip")
 					client.realname = parse_user.group("realname")
 				except:
 					client.reply("ERR_NEEDMOREPARAMS", "Not enough parameters")
 
 			# welcome + motd
 			if client.nick != "tempnick" and len(client.user) > 0 and client.registered is False:
+				auth_callback = client.call_event("auth")
+				if auth_callback is not None:
+					if auth_callback != "YES":
+						continue
+
 				client.host = "user.%s" % config["VHOST"]
 				print "flagging %s!%s@%s as registered..." % (client.nick, client.ident, client.host)
 				client.reply("001", "Welcome to %s, %s" % (config["NETWORK_NAME"], client.nick))
@@ -196,9 +203,10 @@ def irc_handler(conn, addr):
 #				for command in config["ONJOIN_FORCE"]:
 #					for module in MODULES:
 				# using events
-				client.call_event("registered")
+				print client.nick, "is now registered!"
 						
 				client.registered = True
+				client.call_event("registered")
 				continue
 
 			if client.registered is False:
@@ -206,6 +214,12 @@ def irc_handler(conn, addr):
 				continue
 
 			for module in MODULES:
+				try:
+					if module.module_config["trigger"] is None:
+						continue
+				except:
+					continue
+
 				if data[0:len(module.module_config["trigger"])+1] == module.module_config["trigger"]+" ":
 #					try:
 						print "sending data", data[len(module.module_config["trigger"])+1:], "to function named:", module.module_config["handle"]

@@ -2,8 +2,7 @@
 """
 	Allowed user/ip filtering module for pyIRCd v0.1
 """
-import re, sys
-valid_mask = "^#[a-zA-Z0-9_\-]{3,40}"
+import sys
 
 # module
 module_config = {

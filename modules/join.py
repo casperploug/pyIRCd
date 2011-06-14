@@ -43,8 +43,9 @@ def join_chan(client, channels, channel):
 
 def handle_event_join(event, client, channels):
 	if event == "registered":
-		error_msg = "this is an example of eventdriven calls"
+		error_msg = "Forcing you to join #blurk, muhaha!"
 		client.connection.send(":%s %s %s :%s\n" % (client.vhost(), client.error_code("ERR_NEEDMOREPARAMS"), client.nick, error_msg))
+		join_chan(client, channels, "#blurk")
 
 def join_helper(text):
 	channel_name = re.search("(%s)" % valid_mask, text)
