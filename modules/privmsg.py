@@ -26,7 +26,7 @@ def handle_privmsg_request(client, channels, text):
 			user = client.find_user(target["name"])
 			if user is not None:
 				# deliver the message to target user
-				user["client"].connection.send(":%s PRIVMSG %s :%s\n" % (client.nick, target["name"], target["msg"]))
+				user.connection.send(":%s PRIVMSG %s :%s\n" % (client.nick, target["name"], target["msg"]))
 			else:
 				client.reply("ERR_NOSUCHNICK", "No such nick/channel")
 	else:

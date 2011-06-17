@@ -29,6 +29,8 @@ def join_chan(client, channels, channel):
 		# get users on chan
 		channel_nicks = []
 		channel_info = client.channel(channel)
+		if client in channel_info["users"]:
+			return
 		# return channel nicklist
 		for users in channel_info["users"]:
 			channel_nicks.append(users["prefix"]+users["client"].nick)

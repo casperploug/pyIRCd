@@ -104,7 +104,7 @@ class irc_client():
 			except:
 				continue
 			if event_name in module_events:
-				print "event", event_name," hit. running event function named:", module.module_config["event_handle"]
+				print "event", event_name, "hit. running event function named:", module.module_config["event_handle"]
 				try:
 					if module.module_config["include channels"] is True:
 						return getattr(module, module.module_config["event_handle"])(event_name, self, channels)
@@ -153,6 +153,7 @@ def irc_handler(conn, addr):
 			print "received[",data,"]"
 			if data[0:6] == "QUIT :":
 				print "%s quit" % client.nick
+				client.call_event("quit")
 				clients.remove(client)
 				conn.close()
 				break
@@ -187,6 +188,12 @@ def irc_handler(conn, addr):
 				except:
 					client.reply("ERR_NEEDMOREPARAMS", "Not enough parameters")
 
+			if data[0:5] == "PASS ":
+				try:
+					client.passwd = data[5:]
+				except:
+					client.reply("ERR_NEEDMOREPARAMS", "Not enough parameters")
+
 			# welcome + motd
 			if client.nick != "tempnick" and len(client.user) > 0 and client.registered is False:
 				auth_callback = client.call_event("auth")
@@ -199,13 +206,9 @@ def irc_handler(conn, addr):
 				client.reply("001", "Welcome to %s, %s" % (config["NETWORK_NAME"], client.nick))
 				client.reply("002", "mangled host set to %s" % client.host)
 				client.display_motd()
-# maybe make this as a fuction, and allow for config ONJOIN_FORCE to force join/mode/whatever for users connecting
-#				for command in config["ONJOIN_FORCE"]:
-#					for module in MODULES:
-				# using events
-				print client.nick, "is now registered!"
-						
+
 				client.registered = True
+				# using events
 				client.call_event("registered")
 				continue
 
@@ -223,9 +226,10 @@ def irc_handler(conn, addr):
 				if data[0:len(module.module_config["trigger"])+1] == module.module_config["trigger"]+" ":
 #					try:
 						print "sending data", data[len(module.module_config["trigger"])+1:], "to function named:", module.module_config["handle"]
-						if module.module_config["include channels"] is True:
-							getattr(module, module.module_config["handle"])(client, channels, data[len(module.module_config["trigger"])+1:])
-						else:
+						try:
+							if module.module_config["include channels"] is True:
+								getattr(module, module.module_config["handle"])(client, channels, data[len(module.module_config["trigger"])+1:])
+						except:
 							getattr(module, module.module_config["handle"])(client, data[len(module.module_config["trigger"])+1:])
 #					except:
 #						print "External module error"
@@ -290,7 +294,10 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
 	s.bind((config["BIND_ADDRESS"], config["PORT"]))
 except Exception, e:
-	print type(e)
+	if type(e) != socket.error:
+		print type(e)
+	print "failed to listen, exiting"
+	exit(0)
 print "Listening on %s:%s" % (config["BIND_ADDRESS"], str(config["PORT"]))
 s.listen(5)
 print 'pyIRCd v0.1'
