@@ -181,7 +181,7 @@ def irc_handler(conn, addr):
 			if data[0:5] == "USER ":
 				try:
 					client.user = data[5:]
-					parse_user = re.search("^(?P<ident>[^ ]+) \"(?P<mail>[^\"]+)?\" \"(?P<ip>[^\"]+)\" :(?P<realname>.+)$", client.user)
+					parse_user = re.search("^(?P<ident>[^ ]+) (?:\")?(?P<mail>[^\"]+)?(?:\")? (?:\")?(?P<ip>[^\"]+)(?:\")? :(?P<realname>.+)$", client.user)
 					client.ident = parse_user.group("ident")
 					# client.ip = parse_user.group("ip")
 					client.realname = parse_user.group("realname")

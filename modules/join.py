@@ -22,7 +22,7 @@ def join_chan(client, channels, channel):
 	if channel is not None:
 		# to do: ban/invite flag, not accounted for atm.
 		if client.channel(channel) is None:
-			channels[channel] = {"users":[{"client":client, "prefix":"@"}], "mode":"+nt"}
+			channels[channel] = {"users":[{"client":client, "prefix":"o"}], "mode":"+nt"}
 		else:
 			client.channel(channel)["users"].append({"client":client, "prefix":""})
 		client.channels[channel] = client.channel(channel)
@@ -33,7 +33,7 @@ def join_chan(client, channels, channel):
 			return
 		# return channel nicklist
 		for users in channel_info["users"]:
-			channel_nicks.append(users["prefix"]+users["client"].nick)
+			channel_nicks.append(usermode(users["prefix"])+users["client"].nick)
 			users["client"].connection.send(":%s!%s@%s JOIN :%s\n" % (client.nick, client.ident, client.host, channel))
 
 		for nick in channel_nicks:
@@ -48,6 +48,20 @@ def handle_event_join(event, client, channels):
 		error_msg = "Forcing you to join #blurk, muhaha!"
 		client.connection.send(":%s %s %s :%s\n" % (client.vhost(), client.error_code("ERR_NEEDMOREPARAMS"), client.nick, error_msg))
 		join_chan(client, channels, "#blurk")
+
+def usermode(flag):
+	if "q" in flag:
+		return "~"
+	elif "a" in flag:
+		return "&"
+	elif "o" in flag:
+		return "@"
+	elif "h" in flag:
+		return "%"
+	elif "v" in flag:
+		return "+"
+	else:
+		return ""
 
 def join_helper(text):
 	channel_name = re.search("(%s)" % valid_mask, text)

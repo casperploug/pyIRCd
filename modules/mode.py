@@ -8,57 +8,47 @@ import re, sys, time
 module_config = {
 	"trigger":"MODE",
 	"handle":"handle_mode_request",
-	"include channels":True
 }
 
-supported_modes = "ovnt"
+valid_mask = "^#[a-zA-Z0-9_\-]{3,40}"
+supported_modes = "oqahvnt" # not enforced atm.
 
-def handle_mode_request(client, channels, text):
+def handle_mode_request(client, text):
 #	try:
-#		mode_chunks = re.search("", text)
-		
-		mode_chunks = text.split()
-		target = mode_chunks[0]
-		try:
-			modes = mode_chunks[1]
-			try:
-				modes += " "+mode_chunks[2]
-			except:
-				pass
-		except:
-			modes = None
+		# MODE #chan +-x[x] user1 [user2]
+		modes = re.search("(#[a-zA-Z0-9_\-]{3,40}) (.+)", text)
 		if modes is not None:
-			set_modes = []
-			print modes,"!!!!"
-			for mode in re.finditer("([\+\-])([a-z])(?: (?P<param>[a-zA-Z0-9]+))?", modes):
-				if mode.group(2) in supported_modes:
-					set_modes.append(mode.group(1)+mode.group(2))
-				else:
-					client.reply("ERR_UNKNOWNMODE", "Mode %s is not supported." % mode.group(2))
-			if len(set_modes) is 0:
+			target = modes.group(1)
+			set_modes = modes.group(2)
+			allowed = False
+			for user in client.channel(target)["users"]:
+				# q: ~owner a: &protected  o: @op h: %halfop v: +voice
+				if user["client"] == client and len(set(["q", "a", "o", "h"]).intersection(list(user["prefix"]))) > 0:
+					print "you're allowed to do so, 'cus your flags are", user["prefix"]
+					allowed = True
+					break
+			if allowed is True:
+				for user in client.channel(target)["users"]:
+					user["client"].connection.send(":%s MODE %s %s\n" % (client.nick, target, set_modes))
+					if user["client"].nick in set_modes:
+						if set_modes[0] == "+":
+							user["prefix"] += set_modes[1:].replace(user["client"].nick, "")
+						elif set_modes[0] == "-":
+							for mode in list(set_modes):
+								user["prefix"] = user["prefix"].replace(mode, "")
+						print "user's flags changed to:", user["prefix"]
+			else:
+				print "no"
+				client.reply("ERR_UNKNOWNMODE", "You're not allowed to set mode for %s" % target)
 				return
-			if target == client.nick:
-				client.mode = ''.join(set_modes)
-				pass
-			else:
-				for user in client.channels[target]["users"]:
-					if user["client"] == client and user["prefix"] not in "~&@":
-						client.reply("ERR_UNKNOWNMODE", "You're not allowed to set mode for %s" % target)
-						return
-			for user in client.channels[target]["users"]:
-				if mode.group("param") is not None:
-					for set_mode in set_modes:
-						user["client"].connection.send(":%s MODE %s :%s %s\n" % (client.nick, target, set_mode, mode.group("param")))
-				else:
-					for set_mode in set_modes:
-						user["client"].connection.send(":%s MODE %s :%s %s\n" % (client.nick, target, set_mode, mode.group("param")))
 		else:
-			if re.search("^#[a-zA-Z0-9_\-]{3,40}", target) is not None and target in client.channels:
-				channel_info = client.channels[target]
+			# MODE #channel
+			if re.search("^#[a-zA-Z0-9_\-]{3,40}$", text) is not None and text in client.channels:
+				channel_info = client.channels[text]
 				for user in channel_info["users"]:
-					user["client"].reply("RPL_CHANNELMODEIS", "%s %s" % (target, channel_info["mode"]), None) # results in: client.nick sets mode: +nt - wrong text format?
-					user["client"].reply("329", "%s %i" % (target, int(time.time())), None) # created (now)
+					user["client"].reply("RPL_CHANNELMODEIS", "%s %s" % (text, channel_info["mode"]), None) # results in: client.nick sets mode: +nt - wrong text format?
+					user["client"].reply("329", "%s %i" % (text, int(time.time())), None) # created (now)
 			else:
-				client.reply("ERR_UNKNOWNMODE", "You're not on %s" % target)
+				client.reply("ERR_UNKNOWNMODE", "You're not on %s" % text)
 #	except:
 #		client.reply("ERR_UNKNOWNMODE", "Unknown mode")
