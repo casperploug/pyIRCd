@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-	Quit module for pyIRCd v0.1
+	Part module for pyIRCd v0.1
 """
 import re, sys
 
