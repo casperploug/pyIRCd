@@ -16,7 +16,7 @@ module_config = {
 def handle_privmsg_request(client, channels, text):
 	target = privmsg_helper(text)
 	if target is not None:
-		if target["type"] == "channel":
+		if target["type"] == "channel" and target["name"] in client.channels:
 			channel_info = client.channel(target["name"])
 			for users in channel_info["users"]:
 				# tell everyone on chan about the message

@@ -106,9 +106,12 @@ class irc_client():
 			if event_name in module_events:
 				print "event", event_name, "hit. running event function named:", module.module_config["event_handle"]
 				try:
-					if module.module_config["include channels"] is True:
-						return getattr(module, module.module_config["event_handle"])(event_name, self, channels)
+					module.module_config["include channels"]
 				except:
+					module.module_config["include channels"] = None
+				if module.module_config["include channels"] is True:
+					return getattr(module, module.module_config["event_handle"])(event_name, self, channels)
+				else:
 					return getattr(module, module.module_config["event_handle"])(event_name, self)
 
 clients = []
@@ -227,9 +230,12 @@ def irc_handler(conn, addr):
 #					try:
 						print "sending data", data[len(module.module_config["trigger"])+1:], "to function named:", module.module_config["handle"]
 						try:
-							if module.module_config["include channels"] is True:
-								getattr(module, module.module_config["handle"])(client, channels, data[len(module.module_config["trigger"])+1:])
+							module.module_config["include channels"]
 						except:
+							module.module_config["include channels"] = None
+						if module.module_config["include channels"] is True:
+							getattr(module, module.module_config["handle"])(client, channels, data[len(module.module_config["trigger"])+1:])
+						else:
 							getattr(module, module.module_config["handle"])(client, data[len(module.module_config["trigger"])+1:])
 #					except:
 #						print "External module error"
@@ -291,13 +297,18 @@ if load_config(config_path) is False:
 	print "config error."
 	exit(0)
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-try:
-	s.bind((config["BIND_ADDRESS"], config["PORT"]))
-except Exception, e:
-	if type(e) != socket.error:
-		print type(e)
-	print "failed to listen, exiting"
-	exit(0)
+launched = False
+while launched is not True:
+	try:
+		s.bind((config["BIND_ADDRESS"], config["PORT"]))
+		launched = True
+	except Exception, e:
+		if type(e) != socket.error:
+			print type(e)
+		print "failed to listen, retrying"
+		launched = False
+		sleep(5)
+
 print "Listening on %s:%s" % (config["BIND_ADDRESS"], str(config["PORT"]))
 s.listen(5)
 print 'pyIRCd v0.1'

@@ -18,8 +18,8 @@ def handle_whois_request(client, text):
 	try:
 		client.reply("RPL_WHOISUSER", "%s %s %s * :%s" % (client.nick, client.ident, client.host, client.realname), None)
 		if client.ircop is True:
-			client.reply("RPL_WHOISOPERATOR", "is an IRC operator")
+			client.reply("RPL_WHOISOPERATOR", "%s :is an IRC operator" % client.nick, None)
 		client.reply("RPL_WHOISIDLE", "%s %s %s :seconds idle, signon time" % (client.nick, (int(time.time()) - client.last_action), client.signon), None)
-		client.reply("RPL_ENDOFWHOIS", "End of /WHOIS list")
+		client.reply("RPL_ENDOFWHOIS", "%s :End of /WHOIS list" % client.nick, None)
 	except:
 		client.reply("ERR_NEEDMOREPARAMS", "Usage: /WHOIS %s\nYou can only look-up your own nick." % client.nick)

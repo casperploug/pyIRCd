@@ -20,6 +20,8 @@ def handle_join_request(client, channels, text):
 
 def join_chan(client, channels, channel):
 	if channel is not None:
+		if channel in client.channels:
+			return
 		# to do: ban/invite flag, not accounted for atm.
 		if client.channel(channel) is None:
 			channels[channel] = {"users":[{"client":client, "prefix":"o"}], "mode":"+nt"}
@@ -34,7 +36,10 @@ def join_chan(client, channels, channel):
 		# return channel nicklist
 		for users in channel_info["users"]:
 			channel_nicks.append(usermode(users["prefix"])+users["client"].nick)
-			users["client"].connection.send(":%s!%s@%s JOIN :%s\n" % (client.nick, client.ident, client.host, channel))
+			try:
+				users["client"].connection.send(":%s!%s@%s JOIN :%s\n" % (client.nick, client.ident, client.host, channel))
+			except:
+				pass
 
 		for nick in channel_nicks:
 			client.reply("RPL_NAMREPLY", "= %s :%s" % (channel, nick), None)

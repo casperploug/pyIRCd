@@ -15,8 +15,11 @@ valid_mask = "^(#[a-zA-Z0-9_\-]{3,40})(?: )?(.+)?"
 
 def handle_part_request(client, text):
 	channel = part_helper(text)
+	if channel not in client.channels:
+		return
 	for user in client.channel(channel[0])["users"]:
 		if user["client"] == client:
+			client.channel(channel[0])["users"].remove(user)
 			continue
 		try:
 			user["client"].connection.send(":%s!%s@%s PART %s\n" % (client.nick, client.ident, client.host, channel[0]))

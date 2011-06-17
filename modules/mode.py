@@ -43,9 +43,8 @@ def handle_mode_request(client, text):
 			# MODE #channel
 			if re.search("^#[a-zA-Z0-9_\-]{3,40}$", text) is not None and text in client.channels:
 				channel_info = client.channels[text]
-				for user in channel_info["users"]:
-					user["client"].reply("RPL_CHANNELMODEIS", "%s %s" % (text, channel_info["mode"]), None) # results in: client.nick sets mode: +nt - wrong text format?
-					user["client"].reply("329", "%s %i" % (text, int(time.time())), None) # created (now)
+				client.reply("RPL_CHANNELMODEIS", "%s %s" % (text, channel_info["mode"]), None) # results in: client.nick sets mode: +nt - wrong text format?
+				client.reply("329", "%s %i" % (text, int(time.time())), None) # created (now)
 			else:
 				client.reply("ERR_UNKNOWNMODE", "You're not on %s" % text)
 #	except:
