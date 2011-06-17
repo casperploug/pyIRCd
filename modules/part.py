@@ -18,7 +18,10 @@ def handle_part_request(client, text):
 	for user in client.channel(channel[0])["users"]:
 		if user["client"] == client:
 			continue
-		user["client"].connection.send(":%s!%s@%s PART %s\n" % (client.nick, client.ident, client.host, channel[0]))
+		try:
+			user["client"].connection.send(":%s!%s@%s PART %s\n" % (client.nick, client.ident, client.host, channel[0]))
+		except:
+			pass
 
 def part_helper(text):
 	channel_name = re.search("(%s)" % valid_mask, text)

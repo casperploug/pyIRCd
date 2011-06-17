@@ -24,7 +24,6 @@ def handle_mode_request(client, text):
 			for user in client.channel(target)["users"]:
 				# q: ~owner a: &protected  o: @op h: %halfop v: +voice
 				if user["client"] == client and len(set(["q", "a", "o", "h"]).intersection(list(user["prefix"]))) > 0:
-					print "you're allowed to do so, 'cus your flags are", user["prefix"]
 					allowed = True
 					break
 			if allowed is True:
@@ -38,7 +37,6 @@ def handle_mode_request(client, text):
 								user["prefix"] = user["prefix"].replace(mode, "")
 						print "user's flags changed to:", user["prefix"]
 			else:
-				print "no"
 				client.reply("ERR_UNKNOWNMODE", "You're not allowed to set mode for %s" % target)
 				return
 		else:

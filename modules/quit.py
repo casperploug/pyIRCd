@@ -18,6 +18,9 @@ def handle_event_quit(event, client, channels):
 			for user in client.channel(channel)["users"]:
 				if user["client"] == client or user in notified_users:
 					continue
-				user["client"].connection.send(":%s!%s@%s QUIT :Bye!\n" % (client.nick, client.ident, client.host))
-				notified_users.append(user)
+				try:
+					user["client"].connection.send(":%s!%s@%s QUIT :Bye!\n" % (client.nick, client.ident, client.host))
+					notified_users.append(user)
+				except:
+					pass
 		notified_users = None
