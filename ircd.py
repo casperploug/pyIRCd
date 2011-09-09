@@ -56,12 +56,14 @@ class irc_client():
 		while (1):
 			if datetime.now() >= valid_from:
 				if self.PING() is False:
+					clients.remove(self)
 					break
 				valid_from = datetime.now() + timedelta(seconds=60)
 			sleep(5)
 
 	def PING(self):
 		try:
+			print "pinging client"
 			ping_request = ''
 			for i in range(8):
 			  ping_request += choice(string.letters+string.digits)
